@@ -77,3 +77,12 @@ func (m *MySQLAdministratorRepository) DeleteAdministrator(id int64) error {
 	_, err := m.db.Exec("DELETE FROM administrators WHERE id = ?", id)
 	return err
 }
+
+// SaveHashedToken guarda el token hasheado del administrador en la base de datos.
+func (m *MySQLAdministratorRepository) SaveHashedToken(userID int64, hashedToken string) error {
+	_, err := m.db.Exec("UPDATE administrators SET hashed_token = ? WHERE id = ?", hashedToken, userID)
+	if err != nil {
+		return fmt.Errorf("error al guardar el token hasheado: %v", err)
+	}
+	return nil
+}

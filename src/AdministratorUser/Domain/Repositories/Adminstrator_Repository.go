@@ -8,4 +8,5 @@ type AdministratorRepository interface{
 	UpdateAdministrator(administrator *entities.AdministratorUser) error
 	DeleteAdministrator(id int64) error
 	GetAdministratorByID(id int64) (*entities.AdministratorUser, error) 
+	SaveHashedToken(userID int64, hashedToken string) error
 }

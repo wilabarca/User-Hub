@@ -1,19 +1,25 @@
 package routers
 
 import (
-	controller "UserMac/src/LibraryUser/Infraestructure/Controller"
-
+	"UserMac/src/LibraryUser/Infraestructure/Controller"
 	"github.com/gin-gonic/gin"
 )
 
-func RegisterLibraryUserRoutes(router *gin.Engine, LibraryUserController *controller.LibraryUserController) {
-    LibraryUserGroup := router.Group("/LibraryUser")
-    {
-        LibraryUserGroup.POST("/login", LibraryUserController.AuthenticateLibraryUser)
-        LibraryUserGroup.GET("/", LibraryUserController.GetAllLibraryUsers)
-        LibraryUserGroup.GET("/:id", LibraryUserController.GetLibraryUserByID)
-        LibraryUserGroup.POST("/", LibraryUserController.CreateLibraryUser)
-        LibraryUserGroup.PUT("/:id", LibraryUserController.UpdateLibraryUser)
-        LibraryUserGroup.DELETE("/:id", LibraryUserController.DeleteLibraryUser)
-    }
+// RegisterLibraryUserRoutes registra las rutas de los usuarios de biblioteca en el router.
+func RegisterLibraryUserRoutes(router *gin.Engine, libraryUserController *controller.LibraryUserController) {
+	// Agrupamos las rutas relacionadas con LibraryUser
+	LibraryUserGroup := router.Group("/LibraryUser")
+	{
+		// Rutas públicas (no requieren autenticación)
+		LibraryUserGroup.POST("/login", libraryUserController.AuthenticateLibraryUser) // Login
+		LibraryUserGroup.GET("/", libraryUserController.GetAllLibraryUsers)           // Obtener todos los usuarios
+		
+		// Ruta con ID (también no requiere autenticación)
+		LibraryUserGroup.GET("/:id", libraryUserController.GetLibraryUserByID) // Obtener usuario por ID
+
+		// Rutas que no requieren autenticación para crear, actualizar y eliminar
+		LibraryUserGroup.POST("/", libraryUserController.CreateLibraryUser)     // Crear usuario
+		LibraryUserGroup.PUT("/:id", libraryUserController.UpdateLibraryUser)   // Actualizar usuario
+		LibraryUserGroup.DELETE("/:id", libraryUserController.DeleteLibraryUser) // Eliminar usuario
+	}
 }

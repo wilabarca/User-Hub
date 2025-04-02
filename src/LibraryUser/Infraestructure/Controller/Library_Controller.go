@@ -25,27 +25,26 @@ func (c *LibraryUserController) CreateLibraryUser(ctx *gin.Context) {
 		return
 	}
 
-	// Establecer el status basado en el folio
-	if user.Folio > 1000 {  // Suponiendo que el folio mayor a 1000 activa al usuario
+	if user.Folio > 1000 {
 		user.Status = "activo"
 	} else {
-		user.Status = "inactivo"  // Si el folio es menor o igual a 1000, el usuario es inactivo
+		user.Status = "inactivo"
 	}
 
 	err := c.service.CreateLibraryUser(&user)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Error al crear el usuario de biblioteca"})
 		return
 	}
 
-	ctx.JSON(http.StatusCreated, gin.H{"message": "Usuario de Biblioteca creado"})
+	ctx.JSON(http.StatusCreated, gin.H{"mensaje": "Usuario de Biblioteca creado exitosamente"})
 }
 
 // Obtener todos los usuarios de biblioteca
 func (c *LibraryUserController) GetAllLibraryUsers(ctx *gin.Context) {
 	users, err := c.service.GetLibraryUser()
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Error al obtener los usuarios"})
 		return
 	}
 	ctx.JSON(http.StatusOK, users)
@@ -62,47 +61,34 @@ func (c *LibraryUserController) GetLibraryUserByID(ctx *gin.Context) {
 
 	user, err := c.service.GetLibraryUserByID(int16(num))
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		ctx.JSON(http.StatusNotFound, gin.H{"error": "Usuario no encontrado"})
 		return
 	}
 
 	ctx.JSON(http.StatusOK, user)
 }
 
-// Actualizar un usuario de biblioteca
-func (c *LibraryUserController) UpdateLibraryUser(ctx *gin.Context) {
-	id := ctx.Param("id")
-	userID, err := strconv.Atoi(id)
+// Autenticar un usuario de biblioteca y devolver un token JWT.
+func (c *LibraryUserController) AuthenticateLibraryUser(ctx *gin.Context) {
+	var loginData struct {
+		ID       int16  `json:"id"`
+		Password string `json:"password"`
+	}
+
+	if err := ctx.ShouldBindJSON(&loginData); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Datos de autenticación inválidos"})
+		return
+	}
+
+	token, err := c.service.AuthenticateUser(loginData.ID, loginData.Password)
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "ID inválido"})
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Credenciales incorrectas"})
 		return
 	}
 
-	var user entities.LibraryUser
-	if err := ctx.ShouldBindJSON(&user); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Entrada inválida"})
-		return
-	}
-
-	user.ID = int64(userID)
-
-	// Establecer el status basado en el folio al actualizar
-	if user.Folio > 1000 {  // Folio mayor a 1000: status activo
-		user.Status = "activo"
-	} else {
-		user.Status = "inactivo"  // Folio menor o igual a 1000: status inactivo
-	}
-
-	err = c.service.UpdateLibraryUser(&user)
-	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-
-	ctx.JSON(http.StatusOK, gin.H{"message": "Usuario de Biblioteca actualizado"})
+	ctx.JSON(http.StatusOK, gin.H{"mensaje": "Autenticación exitosa", "token": token})
 }
-
-// Eliminar un usuario de biblioteca
+// Eliminar un usuario de biblioteca por ID
 func (c *LibraryUserController) DeleteLibraryUser(ctx *gin.Context) {
 	id := ctx.Param("id")
 	num, err := strconv.Atoi(id)
@@ -113,29 +99,49 @@ func (c *LibraryUserController) DeleteLibraryUser(ctx *gin.Context) {
 
 	err = c.service.DeleteLibraryUser(int16(num))
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		// Si no se encuentra el usuario, respondemos con 404
+		if err.Error() == "usuario no encontrado" {
+			ctx.JSON(http.StatusNotFound, gin.H{"error": "Usuario no encontrado"})
+		} else {
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Error al eliminar el usuario"})
+		}
 		return
 	}
 
-	ctx.JSON(http.StatusOK, gin.H{"message": "Usuario de Biblioteca eliminado"})
+	// Respuesta exitosa
+	ctx.JSON(http.StatusOK, gin.H{"mensaje": "Usuario eliminado exitosamente"})
 }
-// Autenticar un usuario de biblioteca y devolver un token JWT.
-func (c *LibraryUserController) AuthenticateLibraryUser(ctx *gin.Context) {
-	var loginData struct {
-		ID       int16  `json:"id"`
-		Password string `json:"password"`
-	}
-
-	if err := ctx.ShouldBindJSON(&loginData); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Entrada inválida"})
-		return
-	}
-
-	token, err := c.service.AuthenticateUser(loginData.ID, loginData.Password)
+// Actualizar un usuario de biblioteca por ID
+func (c *LibraryUserController) UpdateLibraryUser(ctx *gin.Context) {
+	id := ctx.Param("id")
+	num, err := strconv.Atoi(id)
 	if err != nil {
-		ctx.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "ID de usuario inválido"})
 		return
 	}
 
-	ctx.JSON(http.StatusOK, gin.H{"token": token})
+	var updatedUser entities.LibraryUser
+	// Intentar enlazar los datos JSON del cuerpo de la solicitud al struct LibraryUser
+	if err := ctx.ShouldBindJSON(&updatedUser); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Datos inválidos para actualizar el usuario"})
+		return
+	}
+
+	// Asignar el ID del usuario que se va a actualizar
+	updatedUser.ID = int64(num)
+
+	// Llamar al servicio para actualizar el usuario
+	err = c.service.UpdateLibraryUser(&updatedUser)
+	if err != nil {
+		// Si no se encuentra el usuario, respondemos con 404
+		if err.Error() == "usuario no encontrado" {
+			ctx.JSON(http.StatusNotFound, gin.H{"error": "Usuario no encontrado"})
+		} else {
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Error al actualizar el usuario"})
+		}
+		return
+	}
+
+	// Respuesta exitosa
+	ctx.JSON(http.StatusOK, gin.H{"mensaje": "Usuario actualizado exitosamente"})
 }

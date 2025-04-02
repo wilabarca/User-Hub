@@ -1,6 +1,8 @@
 package services
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"os"
 	"time"
@@ -28,20 +30,26 @@ func NewAuthenticationService() (*AuthenticationService, error) {
 	return &AuthenticationService{SecretKey: secretKey}, nil
 }
 
-func (a *AuthenticationService) GenerateToken(userID int64, username string) (string, error) {
+func (a *AuthenticationService) GenerateToken(userID int64, username string) (string, string, error) {
 	claims := jwt.MapClaims{
 		"userID":   userID,
 		"username": username,
 		"exp":      time.Now().Add(time.Hour * 2).Unix(),
 	}
 
+	// Generar el token JWT
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	tokenString, err := token.SignedString([]byte(a.SecretKey))
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 
-	return tokenString, nil
+	// Crear un hash SHA256 del token
+	hash := sha256.New()
+	hash.Write([]byte(tokenString))
+	hashedToken := hex.EncodeToString(hash.Sum(nil))
+
+	return tokenString, hashedToken, nil
 }
 
 func (a *AuthenticationService) ValidateToken(tokenString string) (*jwt.Token, error) {
@@ -61,4 +69,10 @@ func (a *AuthenticationService) ValidateToken(tokenString string) (*jwt.Token, e
 	}
 
 	return token, nil
+}
+
+func (a *AuthenticationService) HashToken(token string) (string, error) {
+	hash := sha256.New()
+	hash.Write([]byte(token))
+	return hex.EncodeToString(hash.Sum(nil)), nil
 }

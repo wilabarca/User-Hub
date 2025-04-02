@@ -50,13 +50,14 @@ func createTables(db *sql.DB) error {
 		status ENUM('activo', 'inactivo') NOT NULL DEFAULT 'inactivo'
 	)`
 
-	// Crear tabla para AdministratorUser
+	// Crear tabla para AdministratorUser, con campo para el token hasheado
 	administratorUserTable := `CREATE TABLE IF NOT EXISTS administrator_users (
 		id INT AUTO_INCREMENT PRIMARY KEY,
 		username VARCHAR(255) NOT NULL,
 		password VARCHAR(255) NOT NULL,
 		email VARCHAR(255) UNIQUE NOT NULL,
-		nip VARCHAR(255) NOT NULL
+		nip VARCHAR(255) NOT NULL,
+		hashed_token VARCHAR(255) DEFAULT NULL  -- Agregar campo para el token hasheado
 	)`
 
 	// Ejecutar creación de tabla library_users
